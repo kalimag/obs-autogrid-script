@@ -60,5 +60,5 @@ item has a bounding box, the bounding box is also resized so that it retains the
 Affected by bounding box properties (type and alignment). Does not work properly on rotated items.
 
 > **Note** Do not use different positioning methods for multiple grids in the same scene, that will
-> likely have unwanted results. Reset transforms of items when switching from *Set bounding box* to
-> *Scale item*.
+> likely have unwanted results. After changing the setting from *Set bounding box* to *Scale item*,
+> you should reset the transforms of all items in the grid.
