@@ -10,6 +10,9 @@ local AUTOGRID_SOURCE_SETTING_TAG = 'tag'
 local AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG = 'allow_empty_tag'
 local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
 local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
+local AUTOGRID_SOURCE_SETTING_POSITION_METHOD = 'position_method'
+local AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SCALE_ITEM = 'scale_item'
+local AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
 
 local obs = obslua
 local bit = require('bit')
@@ -37,11 +40,16 @@ function grid_source.get_properties()
 	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, 'Maximum items in grid (-1 = unlimited)', -1, 99999, 1)
 	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_PADDING, 'Padding', 0, 99999, 1)
 
+	local list = obs.obs_properties_add_list(props, AUTOGRID_SOURCE_SETTING_POSITION_METHOD, 'Positioning method', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+	obs.obs_property_list_add_string(list, 'Scale item', AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SCALE_ITEM)
+	obs.obs_property_list_add_string(list, 'Set bounding box', AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX)
+
 	return props
 end
 
 function grid_source.get_defaults(settings)
 	obs.obs_data_set_default_int(settings, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, -1)
+	obs.obs_data_set_default_string(settings, AUTOGRID_SOURCE_SETTING_POSITION_METHOD, AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SCALE_ITEM)
 end
 
 function grid_source.create(settings, source)

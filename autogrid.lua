@@ -8,6 +8,9 @@ local AUTOGRID_SOURCE_SETTING_TAG = 'tag'
 local AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG = 'allow_empty_tag'
 local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
 local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
+local AUTOGRID_SOURCE_SETTING_POSITION_METHOD = 'position_method'
+local AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SCALE_ITEM = 'scale_item'
+local AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
 
 local obs = obslua
 local bit = require('bit')
@@ -248,7 +251,11 @@ function autogrid.arrange_scaled(grid_data, grid_bounds, matching_items, handled
 	for i = 1, item_count do
 		local item = matching_items[i]
 
-		autogrid.position_item(item, column, row, grid_bounds, arrangement.cell_width, arrangement.cell_height, grid_data.padding)
+		if grid_data.position_method == AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX then
+			autogrid.set_bounding_box(item, column, row, grid_bounds, arrangement.cell_width, arrangement.cell_height, grid_data.padding)
+		else
+			autogrid.position_item(item, column, row, grid_bounds, arrangement.cell_width, arrangement.cell_height, grid_data.padding)
+		end
 		handled_items[item.item_id] = true
 
 		column = column + 1
@@ -289,6 +296,33 @@ function autogrid.position_item(item, column, row, grid_bounds, cell_width, cell
 
 	local offset_x = cell_x - item.bounds.left + (cell_width - item.bounds.width) / 2
 	local offset_y = cell_y - item.bounds.top + (cell_height - item.bounds.height) / 2
+	if not float_equal(offset_x, 0) or not float_equal(offset_y, 0) then
+		local item_pos = _position_item_vec2_shared
+		obs.obs_sceneitem_get_pos(item.item, item_pos)
+		item_pos.x = item_pos.x + offset_x
+		item_pos.y = item_pos.y + offset_y
+		log_debug('Adjust "%s" by [%f, %f]', item.name, offset_x, offset_y)
+		obs.obs_sceneitem_set_pos(item.item, item_pos)
+	end
+end
+
+local _override_bounding_box_vec2_shared = obs.vec2()
+function autogrid.set_bounding_box(item, column, row, grid_bounds, cell_width, cell_height, padding)
+	local cell_x = grid_bounds.left + cell_width * column
+	local cell_y = grid_bounds.top + cell_height * row
+
+	if obs.obs_sceneitem_get_bounds_type(item.item) == obs.OBS_BOUNDS_NONE then
+		obs.obs_sceneitem_set_bounds_type(item.item, obs.OBS_BOUNDS_SCALE_INNER)
+	end
+
+	local bounding_box = _override_bounding_box_vec2_shared
+	bounding_box.x = cell_width - padding * 2
+	bounding_box.y = cell_height - padding * 2
+	obs.obs_sceneitem_set_bounds(item.item, bounding_box)
+	item.bounds = autogrid.get_item_bounds(item.item, padding)
+
+	local offset_x = cell_x + padding - item.bounds.left
+	local offset_y = cell_y + padding - item.bounds.top
 	if not float_equal(offset_x, 0) or not float_equal(offset_y, 0) then
 		local item_pos = _position_item_vec2_shared
 		obs.obs_sceneitem_get_pos(item.item, item_pos)
@@ -365,6 +399,7 @@ function autogrid.get_grid_data(grid_source)
 		allow_empty_tag = obs.obs_data_get_bool(settings, AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG),
 		max_items = obs.obs_data_get_int(settings, AUTOGRID_SOURCE_SETTING_MAX_ITEMS),
 		padding = obs.obs_data_get_int(settings, AUTOGRID_SOURCE_SETTING_PADDING),
+		position_method = obs.obs_data_get_string(settings, AUTOGRID_SOURCE_SETTING_POSITION_METHOD),
 	}
 	obs.obs_data_release(settings)
 

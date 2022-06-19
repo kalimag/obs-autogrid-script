@@ -31,12 +31,14 @@ can arrange the groups themselves.
 **Warning**: There is no undo support. Make sure to backup your scene collections in case
 the script breaks or does something you don't intend it to.
 
+
 ### Script properties
 
 **Update grids in all visible scenes:** If this setting is disabled, only grids inside the
 currently selected scene (or preview scene in studio mode) will be rearranged.
 If this setting is enabled, grids in all visible scenes including nested scenes will be
 rearranged.
+
 
 ### Autogrid source properties
 
@@ -51,3 +53,8 @@ items may be arranged in other grids.
 
 **Padding:** Minimum amount of space around each item in the grid.
 
+**Positioning method - Scale item:** Sets the size of the item to fit inside the grid. If the
+item has a bounding box, the bounding box is also resized so that it retains the same proportions.
+
+**Positioning method - Set bounding box:** Sets the bounding box size to the size of the grid cell.
+Affected by bounding box properties (type and alignment). Does not work properly on rotated items.
