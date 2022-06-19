@@ -28,8 +28,8 @@ hierarchy as the grid. That is, a grid placed directly in the scene will not arr
 in groups, and a grid inside a group will only arrange items in the same group. A grid
 can arrange the groups themselves.
 
-**Warning**: There is no undo support. Make sure to backup your scene collections in case
-the script breaks or does something you don't intend it to.
+> **Warning** There is no undo support. Make sure to backup your scene collections in case
+> the script breaks or does something you don't intend it to.
 
 
 ### Script properties
@@ -58,3 +58,7 @@ item has a bounding box, the bounding box is also resized so that it retains the
 
 **Positioning method - Set bounding box:** Sets the bounding box size to the size of the grid cell.
 Affected by bounding box properties (type and alignment). Does not work properly on rotated items.
+
+> **Note** Do not use different positioning methods for multiple grids in the same scene, that will
+> likely have unwanted results. Reset transforms of items when switching from *Set bounding box* to
+> *Scale item*.
