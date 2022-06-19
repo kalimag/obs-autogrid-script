@@ -276,6 +276,14 @@ function autogrid.position_item(item, column, row, grid_bounds, cell_width, cell
 		scale.x = scale.x * scale_factor
 		scale.y = scale.y * scale_factor
 		obs.obs_sceneitem_set_scale(item.item, scale)
+
+		if obs.obs_sceneitem_get_bounds_type(item.item) ~= obs.OBS_BOUNDS_NONE then
+			obs.obs_sceneitem_get_bounds(item.item, scale)
+			scale.x = scale.x * scale_factor
+			scale.y = scale.y * scale_factor
+			obs.obs_sceneitem_set_bounds(item.item, scale)
+		end
+
 		item.bounds = autogrid.get_item_bounds(item.item, padding)
 	end
 
