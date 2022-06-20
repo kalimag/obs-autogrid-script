@@ -39,6 +39,9 @@ currently selected scene (or preview scene in studio mode) will be rearranged.
 If this setting is enabled, grids in all visible scenes including nested scenes will be
 rearranged.
 
+**Arrange locked items:** If enabled, items will be arranged in the grid even when they are locked.
+Otherwise they are ignored  even if they have a matching tag. Can be overriden in each grid's properties.
+
 
 ### Autogrid source properties
 

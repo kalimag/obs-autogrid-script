@@ -1,5 +1,6 @@
 local AUTOGRID_SETTING_DEBUG = 'debug'
 local AUTOGRID_SETTING_UPDATE_ALL_VISIBLE_SCENES = 'update_all_visible_scenes'
+local AUTOGRID_SETTING_ARRANGE_LOCKED_ITEMS = 'arrange_locked_items'
 local AUTOGRID_SETTING_UPDATE_HOTKEY = 'update_hotkey'
 local AUTOGRID_HOTKEY_UPDATE = 'lua_autogrid_update_hotkey'
 
@@ -7,6 +8,10 @@ local AUTOGRID_SOURCE_ID = 'lua_autogrid_source'
 local AUTOGRID_SOURCE_SETTING_TAG = 'tag'
 local AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG = 'allow_empty_tag'
 local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
+local AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS = 'arrange_locked_items'
+local AUTOGRID_SOURCE_SETTING_TRUE = 'true'
+local AUTOGRID_SOURCE_SETTING_FALSE = 'false'
+local AUTOGRID_SOURCE_SETTING_DEFAULT = 'default'
 local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD = 'resize_method'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM = 'scale_item'
@@ -19,6 +24,7 @@ local autogrid = {}
 local update_hotkey_id
 local debug_logging = true
 local update_all_visible_scenes = true
+local arrange_locked_items = false
 
 
 
@@ -203,7 +209,11 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 	for i, scene_item in ipairs(scene_items) do
 		local item_id = obs.obs_sceneitem_get_id(scene_item)
 
-		if item_id ~= grid_item_id and not handled_items[item_id] and obs.obs_sceneitem_visible(scene_item) then 
+		if item_id ~= grid_item_id and
+		  not handled_items[item_id] and
+		  obs.obs_sceneitem_visible(scene_item) and
+		  (grid_settings.arrange_locked_items or not obs.obs_sceneitem_locked(scene_item)) then
+
 			local item_source = obs.obs_sceneitem_get_source(scene_item)
 			local output_flags = obs.obs_source_get_output_flags(item_source)
 			local has_video =  bit.band(output_flags, obs.OBS_SOURCE_VIDEO) ~= 0
@@ -384,7 +394,7 @@ function autogrid.get_cell_arrangement(grid)
 
 	best.get_cell_pos = function(column, row)
 		return grid.bounds.left + best.cell_width * column,
-		       grid.bounds.top + best.cell_height * row
+			   grid.bounds.top + best.cell_height * row
 	end
 
 	return best
@@ -423,11 +433,14 @@ function autogrid.get_grid_settings(grid_source)
 		max_items = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_MAX_ITEMS),
 		padding = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_PADDING),
 		resize_method = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD),
+		arrange_locked_items = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS),
 	}
 	obs.obs_data_release(data)
 
 	settings.tag = settings.tag ~= '' and settings.tag:gsub('^#', '')
 	settings.max_items = settings.max_items >= 0 and settings.max_items or math.huge
+	settings.arrange_locked_items = settings.arrange_locked_items == AUTOGRID_SOURCE_SETTING_TRUE or
+		 (settings.arrange_locked_items ~= AUTOGRID_SOURCE_SETTING_FALSE and arrange_locked_items)
 
 	return settings
 end
@@ -457,17 +470,19 @@ end
 
 function script_properties()
 	local prop
-    local props = obs.obs_properties_create()
+	local props = obs.obs_properties_create()
 
-    prop = obs.obs_properties_add_bool(props, AUTOGRID_SETTING_UPDATE_ALL_VISIBLE_SCENES, 'Update grids in all visible scenes')
+	prop = obs.obs_properties_add_bool(props, AUTOGRID_SETTING_UPDATE_ALL_VISIBLE_SCENES, 'Update grids in all visible scenes')
 	obs.obs_property_set_long_description(prop, [[When disabled, only grids inside the currently selected scene (or preview scene in studio mode) will be rearranged.
 When enabled, grids in all visible scenes including nested scenes will be rearranged.]])
 
-    obs.obs_properties_add_bool(props, AUTOGRID_SETTING_DEBUG, 'Debug log (Caution: causes slowdown)')
+	obs.obs_properties_add_bool(props, AUTOGRID_SETTING_ARRANGE_LOCKED_ITEMS, 'Arrange locked items')
 
-    obs.obs_properties_add_button(props, 'manual_update', 'Update Grids', autogrid.update_grids)
+	obs.obs_properties_add_bool(props, AUTOGRID_SETTING_DEBUG, 'Debug log (Caution: causes slowdown)')
 
-    return props
+	obs.obs_properties_add_button(props, 'manual_update', 'Update Grids', autogrid.update_grids)
+
+	return props
 end
 
 function script_defaults(settings)
@@ -484,5 +499,6 @@ end
 
 function script_update(settings)
 	update_all_visible_scenes = obs.obs_data_get_bool(settings, AUTOGRID_SETTING_UPDATE_ALL_VISIBLE_SCENES)
+	arrange_locked_items = obs.obs_data_get_bool(settings, AUTOGRID_SETTING_ARRANGE_LOCKED_ITEMS)
 	debug_logging = obs.obs_data_get_bool(settings, AUTOGRID_SETTING_DEBUG)
 end

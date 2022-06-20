@@ -9,6 +9,10 @@ local AUTOGRID_SOURCE_ID = 'lua_autogrid_source'
 local AUTOGRID_SOURCE_SETTING_TAG = 'tag'
 local AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG = 'allow_empty_tag'
 local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
+local AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS = 'arrange_locked_items'
+local AUTOGRID_SOURCE_SETTING_TRUE = 'true'
+local AUTOGRID_SOURCE_SETTING_FALSE = 'false'
+local AUTOGRID_SOURCE_SETTING_DEFAULT = 'default'
 local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD = 'resize_method'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM = 'scale_item'
@@ -45,6 +49,11 @@ This checkbox only exists so that adding an autogrid with default settings to a 
 
 	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, 'Maximum items in grid (-1 = unlimited)', -1, 99999, 1)
 
+	prop = obs.obs_properties_add_list(props, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS, 'Arrange locked items', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+	obs.obs_property_list_add_string(prop, '(Script default)', AUTOGRID_SOURCE_SETTING_DEFAULT)
+	obs.obs_property_list_add_string(prop, 'Yes', AUTOGRID_SOURCE_SETTING_TRUE)
+	obs.obs_property_list_add_string(prop, 'No', AUTOGRID_SOURCE_SETTING_FALSE)
+
 	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_PADDING, 'Padding', 0, 99999, 1)
 
 	prop = obs.obs_properties_add_list(props, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD, 'Resize mode', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
@@ -58,6 +67,7 @@ end
 
 function grid_source.get_defaults(settings)
 	obs.obs_data_set_default_int(settings, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, -1)
+	obs.obs_data_set_default_string(settings, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS, AUTOGRID_SOURCE_SETTING_DEFAULT)
 	obs.obs_data_set_default_string(settings, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM)
 end
 
