@@ -184,16 +184,17 @@ function autogrid.process_scene(scene_source)
 end
 
 function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handled_items)
-	local grid_data = autogrid.get_grid_data(grid_source)
+	local grid_settings = autogrid.get_grid_settings(grid_source)
 
-	log_debug('process_grid(%s): grid_data=%s', source_tostring(grid_source), grid_data)
+	log_debug('process_grid(%s): grid_settings=%s', source_tostring(grid_source), grid_settings)
 
-	if not grid_data.tag and not grid_data.allow_empty_tag then
+	if grid_settings.max_items < 1 then return end
+	if not grid_settings.tag and not grid_settings.allow_empty_tag then
 		log_warn('Autogrid "%s" has no tag configured and will be ignored', obs.obs_source_get_name(grid_source))
 		return
 	end
 
-	local tag_pattern = grid_data.tag and ('#'..grid_data.tag..'%f[%A]') -- equivalent to regex \b?
+	local tag_pattern = grid_settings.tag and ('#'..grid_settings.tag..'%f[%A]') -- equivalent to regex \b?
 
 	local grid_item_id = obs.obs_sceneitem_get_id(grid_item)
 
@@ -215,7 +216,7 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 					item = scene_item,
 					source = item_source,
 					order = obs.obs_sceneitem_get_order_position(scene_item),
-					bounds = autogrid.get_item_bounds(scene_item, grid_data.padding),
+					bounds = autogrid.get_item_bounds(scene_item, grid_settings.padding),
 					name = name,
 					item_id = item_id,
 				})
@@ -227,34 +228,33 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 
 	table.sort(matching_items, function(a,b) return a.order > b.order end)
 
-	local grid_bounds = autogrid.get_item_bounds(grid_item)
-	autogrid.arrange_scaled(grid_data, grid_bounds, matching_items, handled_items)
+	local grid_info = {
+		settings = grid_settings,
+		items = matching_items,
+		bounds = autogrid.get_item_bounds(grid_item),
+	}
+
+	autogrid.arrange_scaled(grid_info, handled_items)
 end
 
-function autogrid.arrange_scaled(grid_data, grid_bounds, matching_items, handled_items)
-	local item_count = math.min(#matching_items, grid_data.max_items)
-	if item_count == 0 then return end
+function autogrid.arrange_scaled(grid, handled_items)
 
-	local avg_aspect_ratio = 0
-	for i = 1, item_count do
-		local item = matching_items[i]
-		avg_aspect_ratio = avg_aspect_ratio + (item.bounds.padded_width /item.bounds.padded_height)
-	end
-	avg_aspect_ratio = avg_aspect_ratio / item_count
+	grid.item_count = math.min(#grid.items, grid.settings.max_items)
+	grid.avg_dimensions = autogrid.get_avg_dimensions(grid)
 
-	local arrangement = autogrid.get_cell_arrangement(grid_bounds, item_count, avg_aspect_ratio)
+	local arrangement = autogrid.get_cell_arrangement(grid)
 
-	log_debug('arrangement=%s', arrangement)
+	log_debug('avg_dimensions=%s arrangement=%s', grid.settings, grid.avg_dimensions, arrangement)
 
 	local column = 0
 	local row = 0
-	for i = 1, item_count do
-		local item = matching_items[i]
+	for i = 1, grid.item_count do
+		local item = grid.items[i]
 
-		if grid_data.position_method == AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX then
-			autogrid.set_bounding_box(item, column, row, grid_bounds, arrangement.cell_width, arrangement.cell_height, grid_data.padding)
+		if grid.settings.position_method == AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX then
+			autogrid.arrange_item_bounding_box(grid, arrangement, item, column, row)
 		else
-			autogrid.position_item(item, column, row, grid_bounds, arrangement.cell_width, arrangement.cell_height, grid_data.padding)
+			autogrid.arrange_item_scaled(grid, arrangement, item, column, row)
 		end
 		handled_items[item.item_id] = true
 
@@ -266,13 +266,33 @@ function autogrid.arrange_scaled(grid_data, grid_bounds, matching_items, handled
 	end
 end
 
-local _position_item_vec2_shared = obs.vec2()
-function autogrid.position_item(item, column, row, grid_bounds, cell_width, cell_height, padding)
-	local cell_x = grid_bounds.left + cell_width * column
-	local cell_y = grid_bounds.top + cell_height * row
+function autogrid.get_avg_dimensions(grid)
+	if grid.item_count == 0 then return 1 end
 
-	local width_ratio = (cell_width - padding * 2)  / item.bounds.width
-	local height_ratio = (cell_height - padding * 2) / item.bounds.height
+	local total_width = 0
+	local total_height = 0
+	local aspect_ratio_sum = 0
+	for i = 1, grid.item_count do
+		local bounds = grid.items[i].bounds
+		total_width = total_width + bounds.padded_width
+		total_height = total_height + bounds.padded_height
+		aspect_ratio_sum = aspect_ratio_sum + (bounds.padded_width / bounds.padded_height)
+	end
+
+	return {
+		width = total_width / grid.item_count,
+		height = total_height / grid.item_count,
+		aspect_ratio = aspect_ratio_sum / grid.item_count,
+	}
+end
+
+local _position_item_vec2_shared = obs.vec2()
+function autogrid.arrange_item_scaled(grid, arrangement, item, column, row)
+	local cell_x = grid.bounds.left + arrangement.cell_width * column
+	local cell_y = grid.bounds.top + arrangement.cell_height * row
+
+	local width_ratio = (arrangement.cell_width - grid.settings.padding * 2)  / item.bounds.width
+	local height_ratio = (arrangement.cell_height - grid.settings.padding * 2) / item.bounds.height
 	local scale_factor = math.min(width_ratio, height_ratio)
 
 	--log_debug('cell_x=%f, cell_y=%f scale_factor=%f', cell_x, cell_y, scale_factor)
@@ -291,11 +311,11 @@ function autogrid.position_item(item, column, row, grid_bounds, cell_width, cell
 			obs.obs_sceneitem_set_bounds(item.item, scale)
 		end
 
-		item.bounds = autogrid.get_item_bounds(item.item, padding)
+		item.bounds = autogrid.get_item_bounds(item.item, grid.settings.padding)
 	end
 
-	local offset_x = cell_x - item.bounds.left + (cell_width - item.bounds.width) / 2
-	local offset_y = cell_y - item.bounds.top + (cell_height - item.bounds.height) / 2
+	local offset_x = cell_x - item.bounds.left + (arrangement.cell_width - item.bounds.width) / 2
+	local offset_y = cell_y - item.bounds.top + (arrangement.cell_height - item.bounds.height) / 2
 	if not float_equal(offset_x, 0) or not float_equal(offset_y, 0) then
 		local item_pos = _position_item_vec2_shared
 		obs.obs_sceneitem_get_pos(item.item, item_pos)
@@ -306,23 +326,23 @@ function autogrid.position_item(item, column, row, grid_bounds, cell_width, cell
 	end
 end
 
-local _override_bounding_box_vec2_shared = obs.vec2()
-function autogrid.set_bounding_box(item, column, row, grid_bounds, cell_width, cell_height, padding)
-	local cell_x = grid_bounds.left + cell_width * column
-	local cell_y = grid_bounds.top + cell_height * row
+local _set_bounding_box_vec2_shared = obs.vec2()
+function autogrid.arrange_item_bounding_box(grid, arrangement, item, column, row)
+	local cell_x = grid.bounds.left + arrangement.cell_width * column
+	local cell_y = grid.bounds.top + arrangement.cell_height * row
 
 	if obs.obs_sceneitem_get_bounds_type(item.item) == obs.OBS_BOUNDS_NONE then
 		obs.obs_sceneitem_set_bounds_type(item.item, obs.OBS_BOUNDS_SCALE_INNER)
 	end
 
-	local bounding_box = _override_bounding_box_vec2_shared
-	bounding_box.x = cell_width - padding * 2
-	bounding_box.y = cell_height - padding * 2
+	local bounding_box = _set_bounding_box_vec2_shared
+	bounding_box.x = arrangement.cell_width - grid.settings.padding * 2
+	bounding_box.y = arrangement.cell_height - grid.settings.padding * 2
 	obs.obs_sceneitem_set_bounds(item.item, bounding_box)
-	item.bounds = autogrid.get_item_bounds(item.item, padding)
+	item.bounds = autogrid.get_item_bounds(item.item, grid.settings.padding)
 
-	local offset_x = cell_x + padding - item.bounds.left
-	local offset_y = cell_y + padding - item.bounds.top
+	local offset_x = cell_x + grid.settings.padding - item.bounds.left
+	local offset_y = cell_y + grid.settings.padding - item.bounds.top
 	if not float_equal(offset_x, 0) or not float_equal(offset_y, 0) then
 		local item_pos = _position_item_vec2_shared
 		obs.obs_sceneitem_get_pos(item.item, item_pos)
@@ -333,33 +353,38 @@ function autogrid.set_bounding_box(item, column, row, grid_bounds, cell_width, c
 	end
 end
 
-function autogrid.get_cell_arrangement(grid_bounds, item_count, avg_aspect_ratio)
-	local function get_arrangement(int_columns, int_rows)
-		if int_columns * int_rows < item_count then return nil end
+function autogrid.get_cell_arrangement(grid)
+	local function get_arrangement(columns, rows)
+		if columns * rows < grid.item_count then return nil end
 
-		local cell_width = grid_bounds.width / int_columns
-		local cell_height = grid_bounds.height / int_rows
+		local cell_width = grid.bounds.width / columns
+		local cell_height = grid.bounds.height / rows
 		return {
-			columns = int_columns,
-			rows = int_rows,
+			columns = columns,
+			rows = rows,
 			cell_width = cell_width,
 			cell_height = cell_height,
 			-- how much would we scale an average proportioned item of [width=avg_aspect_ratio height=1] to fit
-			avg_scale_factor = math.min(cell_width / avg_aspect_ratio, cell_height --[[/ 1]])
+			score = math.min(cell_width / grid.avg_dimensions.aspect_ratio, cell_height --[[/ 1]])
 		}
 	end
 
 	-- i'm sure there's a smart way to do this but let's just brute force it for now
 	local arrangements = {}
-	for c = 1, item_count do
-		table.insert(arrangements, get_arrangement(c, math.ceil(item_count / c)))
+	for c = 1, grid.item_count do
+		table.insert(arrangements, get_arrangement(c, math.ceil(grid.item_count / c)))
 	end
 
 	local best
 	for _, arrangement in pairs(arrangements) do
-		if not best or arrangement.avg_scale_factor > best.avg_scale_factor then
+		if not best or arrangement.score > best.score then
 			best = arrangement
 		end
+	end
+
+	best.get_cell_pos = function(column, row)
+		return grid.bounds.left + best.cell_width * column,
+		       grid.bounds.top + best.cell_height * row
 	end
 
 	return best
@@ -390,21 +415,21 @@ function autogrid.get_item_bounds(scene_item, padding)
 	return bounds
 end
 
-function autogrid.get_grid_data(grid_source)
-	local settings = obs.obs_source_get_settings(grid_source)
-	local data = {
-		tag = obs.obs_data_get_string(settings, AUTOGRID_SOURCE_SETTING_TAG),
-		allow_empty_tag = obs.obs_data_get_bool(settings, AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG),
-		max_items = obs.obs_data_get_int(settings, AUTOGRID_SOURCE_SETTING_MAX_ITEMS),
-		padding = obs.obs_data_get_int(settings, AUTOGRID_SOURCE_SETTING_PADDING),
-		position_method = obs.obs_data_get_string(settings, AUTOGRID_SOURCE_SETTING_POSITION_METHOD),
+function autogrid.get_grid_settings(grid_source)
+	local data = obs.obs_source_get_settings(grid_source)
+	local settings = {
+		tag = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_TAG),
+		allow_empty_tag = obs.obs_data_get_bool(data, AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG),
+		max_items = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_MAX_ITEMS),
+		padding = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_PADDING),
+		position_method = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_POSITION_METHOD),
 	}
-	obs.obs_data_release(settings)
+	obs.obs_data_release(data)
 
-	data.tag = data.tag ~= '' and data.tag:gsub('^#', '')
-	data.max_items = data.max_items >= 0 and data.max_items or math.huge
+	settings.tag = settings.tag ~= '' and settings.tag:gsub('^#', '')
+	settings.max_items = settings.max_items >= 0 and settings.max_items or math.huge
 
-	return data
+	return settings
 end
 
 function autogrid.on_update_hotkey(pressed)
