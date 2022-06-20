@@ -42,7 +42,7 @@ rearranged.
 
 ### Autogrid source properties
 
-**Source tag:** Only items that contain `#tag` in their name will be arranged in this grid.
+**Source tag:** Only items that contain this #tag anywhere in their name will be arranged in this grid.
 
 **Allow empty tag:** If this is enabled and the source tag property is empty, the grid will
 arrange all items it finds. This checkbox only exists so that adding an autogrid with default
@@ -53,12 +53,12 @@ items may be arranged in other grids.
 
 **Padding:** Minimum amount of space around each item in the grid.
 
-**Positioning method - Scale item:** Sets the size of the item to fit inside the grid. If the
-item has a bounding box, the bounding box is also resized so that it retains the same proportions.
+**Resize mode - Resize item:** Sets the size of the item to fit inside the grid. If the item
+has a bounding box, the bounding box is also resized so that it retains the same proportions.
 
-**Positioning method - Set bounding box:** Sets the bounding box size to the size of the grid cell.
+**Resize mode - Set bounding box:** Sets the bounding box size to the available space in the grid cell.
 Affected by bounding box properties (type and alignment). Does not work properly on rotated items.
 
-> **Note** Do not use different positioning methods for multiple grids in the same scene, that will
-> likely have unwanted results. After changing the setting from *Set bounding box* to *Scale item*,
+> **Note** Do not use different resize modes for multiple grids in the same scene, that will
+> likely have unwanted results. After changing the setting from *Set bounding box* to *Resize item*,
 > you should reset the transforms of all items in the grid.

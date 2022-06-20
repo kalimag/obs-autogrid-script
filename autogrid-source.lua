@@ -10,9 +10,9 @@ local AUTOGRID_SOURCE_SETTING_TAG = 'tag'
 local AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG = 'allow_empty_tag'
 local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
 local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
-local AUTOGRID_SOURCE_SETTING_POSITION_METHOD = 'position_method'
-local AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SCALE_ITEM = 'scale_item'
-local AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
+local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD = 'resize_method'
+local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM = 'scale_item'
+local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
 
 local obs = obslua
 local bit = require('bit')
@@ -31,25 +31,34 @@ function grid_source.get_name()
 end
 
 function grid_source.get_properties()
+	local prop
 	local props = obs.obs_properties_create()
 
-	obs.obs_properties_set_flags(props, obs.OBS_PROPERTIES_DEFER_UPDATE)
+	--obs.obs_properties_set_flags(props, obs.OBS_PROPERTIES_DEFER_UPDATE)
 
-	obs.obs_properties_add_text(props, AUTOGRID_SOURCE_SETTING_TAG, 'Source tag (only sources with #tag in their name)', obs.OBS_TEXT_DEFAULT)
-	obs.obs_properties_add_bool(props, AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG, 'Allow empty tag (may rearrange everything in the scene)')
+	prop = obs.obs_properties_add_text(props, AUTOGRID_SOURCE_SETTING_TAG, 'Source tag', obs.OBS_TEXT_DEFAULT)
+	obs.obs_property_set_long_description(prop, 'Only items that contain this #tag anywhere in their name will be arranged in this grid.')
+
+	prop = obs.obs_properties_add_bool(props, AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG, 'Allow empty tag')
+	obs.obs_property_set_long_description(prop, [[If this is enabled and the source tag property is empty, the grid will arrange all items it finds.
+This checkbox only exists so that adding an autogrid with default settings to a scene can't accidentally mess up the entire scene.]])
+
 	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, 'Maximum items in grid (-1 = unlimited)', -1, 99999, 1)
+
 	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_PADDING, 'Padding', 0, 99999, 1)
 
-	local list = obs.obs_properties_add_list(props, AUTOGRID_SOURCE_SETTING_POSITION_METHOD, 'Positioning method', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
-	obs.obs_property_list_add_string(list, 'Scale item', AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SCALE_ITEM)
-	obs.obs_property_list_add_string(list, 'Set bounding box', AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX)
+	prop = obs.obs_properties_add_list(props, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD, 'Resize mode', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+	obs.obs_property_list_add_string(prop, 'Resize item', AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM)
+	obs.obs_property_list_add_string(prop, 'Set bounding box', AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SET_BOUNDING_BOX)
+	obs.obs_property_set_long_description(prop, [[Do not use different resize modes for multiple grids in the same scene.
+After changing from "Set bounding box" to "Resize item", bounding boxes must be manually reset.]])
 
 	return props
 end
 
 function grid_source.get_defaults(settings)
 	obs.obs_data_set_default_int(settings, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, -1)
-	obs.obs_data_set_default_string(settings, AUTOGRID_SOURCE_SETTING_POSITION_METHOD, AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SCALE_ITEM)
+	obs.obs_data_set_default_string(settings, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM)
 end
 
 function grid_source.create(settings, source)

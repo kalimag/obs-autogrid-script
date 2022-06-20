@@ -8,9 +8,9 @@ local AUTOGRID_SOURCE_SETTING_TAG = 'tag'
 local AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG = 'allow_empty_tag'
 local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
 local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
-local AUTOGRID_SOURCE_SETTING_POSITION_METHOD = 'position_method'
-local AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SCALE_ITEM = 'scale_item'
-local AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
+local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD = 'resize_method'
+local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM = 'scale_item'
+local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
 
 local obs = obslua
 local bit = require('bit')
@@ -251,7 +251,7 @@ function autogrid.arrange_scaled(grid, handled_items)
 	for i = 1, grid.item_count do
 		local item = grid.items[i]
 
-		if grid.settings.position_method == AUTOGRID_SOURCE_SETTING_POSITION_METHOD_SET_BOUNDING_BOX then
+		if grid.settings.resize_method == AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SET_BOUNDING_BOX then
 			autogrid.arrange_item_bounding_box(grid, arrangement, item, column, row)
 		else
 			autogrid.arrange_item_scaled(grid, arrangement, item, column, row)
@@ -422,7 +422,7 @@ function autogrid.get_grid_settings(grid_source)
 		allow_empty_tag = obs.obs_data_get_bool(data, AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG),
 		max_items = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_MAX_ITEMS),
 		padding = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_PADDING),
-		position_method = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_POSITION_METHOD),
+		resize_method = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD),
 	}
 	obs.obs_data_release(data)
 
@@ -456,10 +456,15 @@ Note: The script "autogrid-source.lua" must also be loaded]]
 end
 
 function script_properties()
+	local prop
     local props = obs.obs_properties_create()
 
-    obs.obs_properties_add_bool(props, AUTOGRID_SETTING_UPDATE_ALL_VISIBLE_SCENES, 'Update grids in all visible scenes')
+    prop = obs.obs_properties_add_bool(props, AUTOGRID_SETTING_UPDATE_ALL_VISIBLE_SCENES, 'Update grids in all visible scenes')
+	obs.obs_property_set_long_description(prop, [[When disabled, only grids inside the currently selected scene (or preview scene in studio mode) will be rearranged.
+When enabled, grids in all visible scenes including nested scenes will be rearranged.]])
+
     obs.obs_properties_add_bool(props, AUTOGRID_SETTING_DEBUG, 'Debug log (Caution: causes slowdown)')
+
     obs.obs_properties_add_button(props, 'manual_update', 'Update Grids', autogrid.update_grids)
 
     return props
