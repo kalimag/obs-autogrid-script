@@ -339,15 +339,13 @@ function autogrid.get_cell_arrangement(grid_bounds, item_count, avg_aspect_ratio
 
 		local cell_width = grid_bounds.width / int_columns
 		local cell_height = grid_bounds.height / int_rows
-		-- how much would we scale an average proportioned item of [width=avg_aspect_ratio height=1] to fit
-		local avg_scale_factor = math.min(cell_width / avg_aspect_ratio, cell_height --[[/ 1]])
 		return {
 			columns = int_columns,
 			rows = int_rows,
 			cell_width = cell_width,
 			cell_height = cell_height,
-			--avg_item_area = (avg_aspect_ratio * avg_scale_factor) * (1 * avg_scale_factor),
-			avg_item_area = avg_aspect_ratio * avg_scale_factor * avg_scale_factor
+			-- how much would we scale an average proportioned item of [width=avg_aspect_ratio height=1] to fit
+			avg_scale_factor = math.min(cell_width / avg_aspect_ratio, cell_height --[[/ 1]])
 		}
 	end
 
@@ -359,7 +357,7 @@ function autogrid.get_cell_arrangement(grid_bounds, item_count, avg_aspect_ratio
 
 	local best
 	for _, arrangement in pairs(arrangements) do
-		if not best or arrangement.avg_item_area > best.avg_item_area then
+		if not best or arrangement.avg_scale_factor > best.avg_scale_factor then
 			best = arrangement
 		end
 	end
