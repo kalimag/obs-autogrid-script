@@ -8,6 +8,8 @@ local AUTOGRID_SOURCE_ID = 'lua_autogrid_source'
 local AUTOGRID_SOURCE_SETTING_TAG = 'tag'
 local AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG = 'allow_empty_tag'
 local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
+local AUTOGRID_SOURCE_SETTING_MAX_COLUMNS = 'max_columns'
+local AUTOGRID_SOURCE_SETTING_MAX_ROWS = 'max_rows'
 local AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS = 'arrange_locked_items'
 local AUTOGRID_SOURCE_SETTING_TRUE = 'true'
 local AUTOGRID_SOURCE_SETTING_FALSE = 'false'
@@ -132,7 +134,7 @@ function autogrid.update_grids()
 	else
 		local scene = obs.obs_frontend_get_current_preview_scene() or obs.obs_frontend_get_current_scene()
 		pcall_log(autogrid.process_scene, scene)
-		obs.obs_source_release(scene);
+		obs.obs_source_release(scene)
 	end
 end
 
@@ -194,7 +196,7 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 
 	log_debug('process_grid(%s): grid_settings=%s', source_tostring(grid_source), grid_settings)
 
-	if grid_settings.max_items < 1 then return end
+	if grid_settings.max_items < 1 or grid_settings.max_rows * grid_settings.max_columns < 1 then return end
 	if not grid_settings.tag and not grid_settings.allow_empty_tag then
 		log_warn('Autogrid "%s" has no tag configured and will be ignored', obs.obs_source_get_name(grid_source))
 		return
@@ -241,6 +243,7 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 	local grid_info = {
 		settings = grid_settings,
 		items = matching_items,
+		item_count = math.min(#matching_items, grid_settings.max_items, grid_settings.max_rows * grid_settings.max_columns),
 		bounds = autogrid.get_item_bounds(grid_item),
 	}
 
@@ -248,8 +251,6 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 end
 
 function autogrid.arrange_scaled(grid, handled_items)
-
-	grid.item_count = math.min(#grid.items, grid.settings.max_items)
 	grid.avg_dimensions = autogrid.get_avg_dimensions(grid)
 
 	local arrangement = autogrid.get_cell_arrangement(grid)
@@ -365,7 +366,11 @@ end
 
 function autogrid.get_cell_arrangement(grid)
 	local function get_arrangement(columns, rows)
-		if columns * rows < grid.item_count then return nil end
+		if columns * rows < grid.item_count or
+		   columns > grid.settings.max_columns or
+		   rows > grid.settings.max_rows then
+			 return nil
+		end
 
 		local cell_width = grid.bounds.width / columns
 		local cell_height = grid.bounds.height / rows
@@ -382,7 +387,7 @@ function autogrid.get_cell_arrangement(grid)
 	-- i'm sure there's a smart way to do this but let's just brute force it for now
 	local arrangements = {}
 	for c = 1, grid.item_count do
-		table.insert(arrangements, get_arrangement(c, math.ceil(grid.item_count / c)))
+		arrangements[c] = get_arrangement(c, math.ceil(grid.item_count / c))
 	end
 
 	local best
@@ -426,11 +431,15 @@ function autogrid.get_item_bounds(scene_item, padding)
 end
 
 function autogrid.get_grid_settings(grid_source)
+	local function zero_as_inf(value) return value > 0 and value or math.huge end
+
 	local data = obs.obs_source_get_settings(grid_source)
 	local settings = {
 		tag = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_TAG),
 		allow_empty_tag = obs.obs_data_get_bool(data, AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG),
-		max_items = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_MAX_ITEMS),
+		max_items = zero_as_inf(obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_MAX_ITEMS)),
+		max_columns = zero_as_inf(obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_MAX_COLUMNS)),
+		max_rows = zero_as_inf(obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_MAX_ROWS)),
 		padding = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_PADDING),
 		resize_method = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD),
 		arrange_locked_items = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS),
@@ -438,7 +447,6 @@ function autogrid.get_grid_settings(grid_source)
 	obs.obs_data_release(data)
 
 	settings.tag = settings.tag ~= '' and settings.tag:gsub('^#', '')
-	settings.max_items = settings.max_items >= 0 and settings.max_items or math.huge
 	settings.arrange_locked_items = settings.arrange_locked_items == AUTOGRID_SOURCE_SETTING_TRUE or
 		 (settings.arrange_locked_items ~= AUTOGRID_SOURCE_SETTING_FALSE and arrange_locked_items)
 

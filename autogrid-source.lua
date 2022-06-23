@@ -9,6 +9,8 @@ local AUTOGRID_SOURCE_ID = 'lua_autogrid_source'
 local AUTOGRID_SOURCE_SETTING_TAG = 'tag'
 local AUTOGRID_SOURCE_SETTING_ALLOW_EMPTY_TAG = 'allow_empty_tag'
 local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
+local AUTOGRID_SOURCE_SETTING_MAX_COLUMNS = 'max_columns'
+local AUTOGRID_SOURCE_SETTING_MAX_ROWS = 'max_rows'
 local AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS = 'arrange_locked_items'
 local AUTOGRID_SOURCE_SETTING_TRUE = 'true'
 local AUTOGRID_SOURCE_SETTING_FALSE = 'false'
@@ -47,7 +49,9 @@ function grid_source.get_properties()
 	obs.obs_property_set_long_description(prop, [[If this is enabled and the source tag property is empty, the grid will arrange all items it finds.
 This checkbox only exists so that adding an autogrid with default settings to a scene can't accidentally mess up the entire scene.]])
 
-	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, 'Maximum items in grid (-1 = unlimited)', -1, 99999, 1)
+	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, 'Maximum items in grid (0 = unlimited)', 0, 99999, 1)
+	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_MAX_COLUMNS, 'Maximum columns (0 = unlimited)', 0, 99999, 1)
+	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_MAX_ROWS, 'Maximum rows (0 = unlimited)', 0, 99999, 1)
 
 	prop = obs.obs_properties_add_list(props, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS, 'Arrange locked items', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
 	obs.obs_property_list_add_string(prop, '(Script default)', AUTOGRID_SOURCE_SETTING_DEFAULT)
@@ -66,7 +70,6 @@ After changing from "Set bounding box" to "Resize item", bounding boxes must be 
 end
 
 function grid_source.get_defaults(settings)
-	obs.obs_data_set_default_int(settings, AUTOGRID_SOURCE_SETTING_MAX_ITEMS, -1)
 	obs.obs_data_set_default_string(settings, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS, AUTOGRID_SOURCE_SETTING_DEFAULT)
 	obs.obs_data_set_default_string(settings, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM)
 end
