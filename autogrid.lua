@@ -11,6 +11,7 @@ local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
 local AUTOGRID_SOURCE_SETTING_MAX_COLUMNS = 'max_columns'
 local AUTOGRID_SOURCE_SETTING_MAX_ROWS = 'max_rows'
 local AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS = 'arrange_locked_items'
+local AUTOGRID_SOURCE_SETTING_ARRANGE_HIDDEN_ITEMS = 'arrange_hidden_items'
 local AUTOGRID_SOURCE_SETTING_TRUE = 'true'
 local AUTOGRID_SOURCE_SETTING_FALSE = 'false'
 local AUTOGRID_SOURCE_SETTING_DEFAULT = 'default'
@@ -213,7 +214,7 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 
 		if item_id ~= grid_item_id and
 		  not handled_items[item_id] and
-		  obs.obs_sceneitem_visible(scene_item) and
+		  (grid_settings.arrange_hidden_items or obs.obs_sceneitem_visible(scene_item)) and
 		  (grid_settings.arrange_locked_items or not obs.obs_sceneitem_locked(scene_item)) then
 
 			local item_source = obs.obs_sceneitem_get_source(scene_item)
@@ -443,6 +444,7 @@ function autogrid.get_grid_settings(grid_source)
 		padding = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_PADDING),
 		resize_method = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD),
 		arrange_locked_items = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS),
+		arrange_hidden_items = obs.obs_data_get_bool(data, AUTOGRID_SOURCE_SETTING_ARRANGE_HIDDEN_ITEMS),
 	}
 	obs.obs_data_release(data)
 

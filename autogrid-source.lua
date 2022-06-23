@@ -12,6 +12,7 @@ local AUTOGRID_SOURCE_SETTING_MAX_ITEMS = 'max_items'
 local AUTOGRID_SOURCE_SETTING_MAX_COLUMNS = 'max_columns'
 local AUTOGRID_SOURCE_SETTING_MAX_ROWS = 'max_rows'
 local AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS = 'arrange_locked_items'
+local AUTOGRID_SOURCE_SETTING_ARRANGE_HIDDEN_ITEMS = 'arrange_hidden_items'
 local AUTOGRID_SOURCE_SETTING_TRUE = 'true'
 local AUTOGRID_SOURCE_SETTING_FALSE = 'false'
 local AUTOGRID_SOURCE_SETTING_DEFAULT = 'default'
@@ -57,6 +58,9 @@ This checkbox only exists so that adding an autogrid with default settings to a 
 	obs.obs_property_list_add_string(prop, '(Script default)', AUTOGRID_SOURCE_SETTING_DEFAULT)
 	obs.obs_property_list_add_string(prop, 'Yes', AUTOGRID_SOURCE_SETTING_TRUE)
 	obs.obs_property_list_add_string(prop, 'No', AUTOGRID_SOURCE_SETTING_FALSE)
+
+	prop = obs.obs_properties_add_bool(props, AUTOGRID_SOURCE_SETTING_ARRANGE_HIDDEN_ITEMS, 'Arrange hidden items')
+	obs.obs_property_set_long_description(prop,  'Whether hidden items should take up spaces in the grid or be ignored')
 
 	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_PADDING, 'Padding', 0, 99999, 1)
 
