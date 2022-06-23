@@ -18,15 +18,14 @@ inside the script settings is pressed. Items will be repositioned and scaled ove
 grids to maximize their size.
 
 Items are arranged based on their order in the source list. The topmost item will be the
-top-left item in the grid. Hidden items are ignored.
+top-left item in the grid. Hidden items and grids are ignored.
 
 Multiple grids can be added to a scene. Items will be placed into the topmost grid that has
 a matching filter and has not reached its item limit.
 
-Grids will only arrange items that are in the same scene and at the same level of the
-hierarchy as the grid. That is, a grid placed directly in the scene will not arrange items
-in groups, and a grid inside a group will only arrange items in the same group. A grid
-can arrange the groups themselves.
+A grid placed directly in the scene will not arrange items inside groups, and a grid inside
+a group will only arrange items in the same group. A grid in the scene can arrange the groups
+themselves just like any other source.
 
 > **Warning** There is no undo support. Make sure to backup your scene collections in case
 > the script breaks or does something you don't intend it to.
@@ -40,7 +39,7 @@ If this setting is enabled, grids in all visible scenes including nested scenes 
 rearranged.
 
 **Arrange locked items:** If enabled, items will be arranged in the grid even when they are locked.
-Otherwise they are ignored  even if they have a matching tag. Can be overriden in each grid's properties.
+Otherwise they are ignored even if they have a matching tag. Can be overriden in each grid's properties.
 
 
 ### Autogrid source properties
