@@ -202,7 +202,8 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 
 	log_debug('process_grid(%s): grid_settings=%s', source_tostring(grid_source), grid_settings)
 
-	if grid_settings.max_items < 1 or grid_settings.max_rows * grid_settings.max_columns < 1 then return end
+	local max_items = math.min(grid_settings.max_items, grid_settings.max_rows * grid_settings.max_columns)
+	if max_items < 1 then return end
 	if not grid_settings.tag and not grid_settings.allow_empty_tag then
 		log_warn('Autogrid "%s" has no tag configured and will be ignored', obs.obs_source_get_name(grid_source))
 		return
@@ -223,13 +224,13 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 		  (grid_settings.arrange_locked_items or not obs.obs_sceneitem_locked(scene_item)) then
 
 			local item_source = obs.obs_sceneitem_get_source(scene_item)
-			local output_flags = obs.obs_source_get_output_flags(item_source)
-			local has_video =  bit.band(output_flags, obs.OBS_SOURCE_VIDEO) ~= 0
-			local name = obs.obs_source_get_name(item_source)
 
-			--log_debug('process_grid: item #%d id=%d %s video=%s pattern=%s', i, item_id, source_tostring(item_source), has_video, tag_pattern)
+			if item_source and
+			  bit.band(obs.obs_source_get_output_flags(item_source), obs.OBS_SOURCE_VIDEO) ~= 0 and
+			  (not tag_pattern or obs.obs_source_get_name(item_source):match(tag_pattern)) then
 
-			if has_video and (not tag_pattern or name:match(tag_pattern)) then
+				--log_debug('matching item: %s', source_tostring(item_source));
+
 				table.insert(matching_items, {
 					item = scene_item,
 					source = item_source,
@@ -238,6 +239,8 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 					name = name,
 					item_id = item_id,
 				})
+
+				if #matching_items >= max_items then break end
 			end
 		end
 	end
