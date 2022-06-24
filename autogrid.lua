@@ -239,8 +239,6 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 					name = name,
 					item_id = item_id,
 				})
-
-				if #matching_items >= max_items then break end
 			end
 		end
 	end
