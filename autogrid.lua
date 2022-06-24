@@ -19,6 +19,11 @@ local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD = 'resize_method'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM = 'scale_item'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
+local AUTOGRID_SOURCE_SETTING_ALIGN_INCOMPLETE = 'align_incomplete'
+
+local ALIGNMENT_MIN = 'min'
+local ALIGNMENT_MID = 'mid'
+local ALIGNMENT_MAX = 'max'
 
 local obs = obslua
 local bit = require('bit')
@@ -256,7 +261,7 @@ function autogrid.arrange_scaled(grid, handled_items)
 
 	local arrangement = autogrid.get_cell_arrangement(grid)
 
-	log_debug('avg_dimensions=%s arrangement=%s', grid.settings, grid.avg_dimensions, arrangement)
+	log_debug('avg_dimensions=%s arrangement=%s', grid.avg_dimensions, arrangement)
 
 	local column = 0
 	local row = 0
@@ -300,8 +305,7 @@ end
 
 local _position_item_vec2_shared = obs.vec2()
 function autogrid.arrange_item_scaled(grid, arrangement, item, column, row)
-	local cell_x = grid.bounds.left + arrangement.cell_width * column
-	local cell_y = grid.bounds.top + arrangement.cell_height * row
+	local cell_x, cell_y = arrangement.get_cell_pos(column, row)
 
 	local width_ratio = (arrangement.cell_width - grid.settings.padding * 2)  / item.bounds.width
 	local height_ratio = (arrangement.cell_height - grid.settings.padding * 2) / item.bounds.height
@@ -340,8 +344,7 @@ end
 
 local _set_bounding_box_vec2_shared = obs.vec2()
 function autogrid.arrange_item_bounding_box(grid, arrangement, item, column, row)
-	local cell_x = grid.bounds.left + arrangement.cell_width * column
-	local cell_y = grid.bounds.top + arrangement.cell_height * row
+	local cell_x, cell_y = arrangement.get_cell_pos(column, row)
 
 	if obs.obs_sceneitem_get_bounds_type(item.item) == obs.OBS_BOUNDS_NONE then
 		obs.obs_sceneitem_set_bounds_type(item.item, obs.OBS_BOUNDS_SCALE_INNER)
@@ -398,8 +401,15 @@ function autogrid.get_cell_arrangement(grid)
 		end
 	end
 
+	if grid.settings.align_incomplete ~= ALIGNMENT_MIN then
+		local empty_cells = best.columns * best.rows - grid.item_count
+		local empty_space = empty_cells * best.cell_width
+		best.last_row_offset = grid.settings.align_incomplete == ALIGNMENT_MAX and empty_space or empty_space / 2
+	end
+
 	best.get_cell_pos = function(column, row)
-		return grid.bounds.left + best.cell_width * column,
+		local x_offset = row + 1 == best.rows and best.last_row_offset or 0
+		return grid.bounds.left + best.cell_width * column + x_offset,
 			   grid.bounds.top + best.cell_height * row
 	end
 
@@ -433,6 +443,12 @@ end
 
 function autogrid.get_grid_settings(grid_source)
 	local function zero_as_inf(value) return value > 0 and value or math.huge end
+	local function validate_enum(value, ...)
+		for i = 1, select('#', ...) do
+			if value == select(i, ...) then return value end
+		end
+		return select(1, ...)
+	end
 
 	local data = obs.obs_source_get_settings(grid_source)
 	local settings = {
@@ -443,8 +459,11 @@ function autogrid.get_grid_settings(grid_source)
 		max_rows = zero_as_inf(obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_MAX_ROWS)),
 		padding = obs.obs_data_get_int(data, AUTOGRID_SOURCE_SETTING_PADDING),
 		resize_method = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD),
-		arrange_locked_items = obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS),
+		arrange_locked_items = validate_enum(obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS),
+			AUTOGRID_SOURCE_SETTING_DEFAULT, AUTOGRID_SOURCE_SETTING_TRUE, AUTOGRID_SOURCE_SETTING_FALSE),
 		arrange_hidden_items = obs.obs_data_get_bool(data, AUTOGRID_SOURCE_SETTING_ARRANGE_HIDDEN_ITEMS),
+		align_incomplete = validate_enum(obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_ALIGN_INCOMPLETE),
+			ALIGNMENT_MIN, ALIGNMENT_MID, ALIGNMENT_MAX),
 	}
 	obs.obs_data_release(data)
 

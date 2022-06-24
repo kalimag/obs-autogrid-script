@@ -20,6 +20,11 @@ local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD = 'resize_method'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM = 'scale_item'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
+local AUTOGRID_SOURCE_SETTING_ALIGN_INCOMPLETE = 'align_incomplete'
+
+local ALIGNMENT_MIN = 'min'
+local ALIGNMENT_MID = 'mid'
+local ALIGNMENT_MAX = 'max'
 
 local obs = obslua
 local bit = require('bit')
@@ -63,6 +68,12 @@ This checkbox only exists so that adding an autogrid with default settings to a 
 	obs.obs_property_set_long_description(prop,  'Whether hidden items should take up spaces in the grid or be ignored')
 
 	obs.obs_properties_add_int(props, AUTOGRID_SOURCE_SETTING_PADDING, 'Padding', 0, 99999, 1)
+
+	prop = obs.obs_properties_add_list(props, AUTOGRID_SOURCE_SETTING_ALIGN_INCOMPLETE, 'Align last row', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+	obs.obs_property_list_add_string(prop, 'Left', ALIGNMENT_MIN)
+	obs.obs_property_list_add_string(prop, 'Center', ALIGNMENT_MID)
+	obs.obs_property_list_add_string(prop, 'Right', ALIGNMENT_MAX)
+	obs.obs_property_set_long_description(prop, 'Alignment of the last row when it contains fewer items than the other rows')
 
 	prop = obs.obs_properties_add_list(props, AUTOGRID_SOURCE_SETTING_RESIZE_METHOD, 'Resize mode', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
 	obs.obs_property_list_add_string(prop, 'Resize item', AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM)
