@@ -19,8 +19,11 @@ local AUTOGRID_SOURCE_SETTING_PADDING = 'padding'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD = 'resize_method'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SCALE_ITEM = 'scale_item'
 local AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SET_BOUNDING_BOX = 'set_bounding_box'
+local AUTOGRID_SOURCE_SETTING_GRID_ALIGN_HORIZONTAL = 'grid_align_horizontal'
+local AUTOGRID_SOURCE_SETTING_GRID_ALIGN_VERTICAL = 'grid_align_vertical'
 local AUTOGRID_SOURCE_SETTING_ALIGN_INCOMPLETE = 'align_incomplete'
 
+local ALIGNMENT_SPREAD = 'spread'
 local ALIGNMENT_MIN = 'min'
 local ALIGNMENT_MID = 'mid'
 local ALIGNMENT_MAX = 'max'
@@ -292,9 +295,9 @@ function autogrid.get_avg_dimensions(grid)
 	local aspect_ratio_sum = 0
 	for i = 1, grid.item_count do
 		local bounds = grid.items[i].bounds
-		total_width = total_width + bounds.padded_width
-		total_height = total_height + bounds.padded_height
-		aspect_ratio_sum = aspect_ratio_sum + (bounds.padded_width / bounds.padded_height)
+		total_width = total_width + bounds.width
+		total_height = total_height + bounds.height
+		aspect_ratio_sum = aspect_ratio_sum + (bounds.width / bounds.height)
 	end
 
 	return {
@@ -370,6 +373,22 @@ function autogrid.arrange_item_bounding_box(grid, arrangement, item, column, row
 end
 
 function autogrid.get_cell_arrangement(grid)
+	local function get_cell_dimension(alignment, available_size, avg_size, avg_scale_factor, cells)
+		if alignment == ALIGNMENT_SPREAD then
+			return available_size, 0
+		else
+			local size = avg_size * avg_scale_factor + grid.settings.padding * 2
+			local unused_space = (available_size - size) * cells
+			if alignment == ALIGNMENT_MIN then
+				return size, 0
+			elseif alignment == ALIGNMENT_MID then
+				return size, unused_space / 2
+			else
+				return size, unused_space
+			end
+		end
+	end
+
 	local function get_arrangement(columns, rows)
 		if columns * rows < grid.item_count or
 		   columns > grid.settings.max_columns or
@@ -377,16 +396,28 @@ function autogrid.get_cell_arrangement(grid)
 			 return nil
 		end
 
-		local cell_width = grid.bounds.width / columns
-		local cell_height = grid.bounds.height / rows
-		return {
+		local available_cell_width = grid.bounds.width / columns
+		local available_cell_height = grid.bounds.height / rows
+
+		local avg_width_ratio = (available_cell_width - grid.settings.padding * 2)  / grid.avg_dimensions.width
+		local avg_height_ratio = (available_cell_height - grid.settings.padding * 2) / grid.avg_dimensions.height
+		local avg_scale_factor = math.min(avg_width_ratio, avg_height_ratio)
+
+		local arrangement = {
 			columns = columns,
 			rows = rows,
-			cell_width = cell_width,
-			cell_height = cell_height,
 			-- how much would we scale an average proportioned item of [width=avg_aspect_ratio height=1] to fit
-			score = math.min(cell_width / grid.avg_dimensions.aspect_ratio, cell_height --[[/ 1]])
+			score = math.min(available_cell_width / grid.avg_dimensions.aspect_ratio, available_cell_height --[[/ 1]])
 		}
+
+		arrangement.cell_width, arrangement.grid_offset_x = get_cell_dimension(
+			grid.settings.grid_align_horizontal, available_cell_width, grid.avg_dimensions.width, avg_scale_factor, columns
+		)
+		arrangement.cell_height, arrangement.grid_offset_y = get_cell_dimension(
+			grid.settings.grid_align_vertical, available_cell_height, grid.avg_dimensions.height, avg_scale_factor, rows
+		)
+
+		return arrangement
 	end
 
 	-- i'm sure there's a smart way to do this but let's just brute force it for now
@@ -410,8 +441,8 @@ function autogrid.get_cell_arrangement(grid)
 
 	best.get_cell_pos = function(column, row)
 		local x_offset = row + 1 == best.rows and best.last_row_offset or 0
-		return grid.bounds.left + best.cell_width * column + x_offset,
-			   grid.bounds.top + best.cell_height * row
+		return grid.bounds.left + best.grid_offset_x + best.cell_width * column + x_offset,
+			   grid.bounds.top + best.grid_offset_y + best.cell_height * row
 	end
 
 	return best
@@ -419,8 +450,6 @@ end
 
 local _get_item_bounds_shared_matrix4 = obs.matrix4()
 function autogrid.get_item_bounds(scene_item, padding)
-	padding = padding or 0
-
 	local transform = _get_item_bounds_shared_matrix4
 	obs.obs_sceneitem_get_box_transform(scene_item, transform)
 
@@ -437,8 +466,6 @@ function autogrid.get_item_bounds(scene_item, padding)
 	}
 	bounds.width = bounds.right - bounds.left
 	bounds.height = bounds.bottom - bounds.top
-	bounds.padded_width = bounds.width + padding * 2
-	bounds.padded_height = bounds.height + padding * 2
 	return bounds
 end
 
@@ -463,6 +490,10 @@ function autogrid.get_grid_settings(grid_source)
 		arrange_locked_items = validate_enum(obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_ARRANGE_LOCKED_ITEMS),
 			AUTOGRID_SOURCE_SETTING_DEFAULT, AUTOGRID_SOURCE_SETTING_TRUE, AUTOGRID_SOURCE_SETTING_FALSE),
 		arrange_hidden_items = obs.obs_data_get_bool(data, AUTOGRID_SOURCE_SETTING_ARRANGE_HIDDEN_ITEMS),
+		grid_align_horizontal = validate_enum(obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_GRID_ALIGN_HORIZONTAL),
+			ALIGNMENT_SPREAD, ALIGNMENT_MIN, ALIGNMENT_MID, ALIGNMENT_MAX),
+			grid_align_vertical = validate_enum(obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_GRID_ALIGN_VERTICAL),
+			ALIGNMENT_SPREAD, ALIGNMENT_MIN, ALIGNMENT_MID, ALIGNMENT_MAX),
 		align_incomplete = validate_enum(obs.obs_data_get_string(data, AUTOGRID_SOURCE_SETTING_ALIGN_INCOMPLETE),
 			ALIGNMENT_MIN, ALIGNMENT_MID, ALIGNMENT_MAX),
 	}
