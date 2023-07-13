@@ -238,7 +238,7 @@ function autogrid.process_grid(grid_item, grid_source, scene, scene_items, handl
 					item = scene_item,
 					source = item_source,
 					order = obs.obs_sceneitem_get_order_position(scene_item),
-					bounds = autogrid.get_item_bounds(scene_item, grid_settings.padding),
+					bounds = autogrid.get_item_bounds(scene_item, grid_settings.padding, grid_settings.resize_method == AUTOGRID_SOURCE_SETTING_RESIZE_METHOD_SET_BOUNDING_BOX),
 					name = name,
 					item_id = item_id,
 				})
@@ -449,9 +449,21 @@ function autogrid.get_cell_arrangement(grid)
 end
 
 local _get_item_bounds_shared_matrix4 = obs.matrix4()
-function autogrid.get_item_bounds(scene_item, padding)
+function autogrid.get_item_bounds(scene_item, padding, ignore_bounding_box)
+	local prev_bounds_type
+	if ignore_bounding_box then
+		prev_bounds_type = obs.obs_sceneitem_get_bounds_type(scene_item)
+		if prev_bounds_type ~= obs.OBS_BOUNDS_NONE then
+			obs.obs_sceneitem_set_bounds_type(scene_item, obs.OBS_BOUNDS_NONE)
+		end
+	end
+
 	local transform = _get_item_bounds_shared_matrix4
 	obs.obs_sceneitem_get_box_transform(scene_item, transform)
+
+	if prev_bounds_type and prev_bounds_type ~= obs.OBS_BOUNDS_NONE then
+		obs.obs_sceneitem_set_bounds_type(scene_item, prev_bounds_type)
+	end
 
 	local x, y, t = transform.x, transform.y, transform.t
 	local tx, ty = t.x, t.y
